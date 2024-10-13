@@ -11,6 +11,7 @@
     "@seald-io/nedb": "4.0.4"
   },
   "devDependencies": {
-    "nodemon": "3.1.7"
+    "nodemon": "3.1.7",
+    "axios": "1.7.7"
   }
 }
