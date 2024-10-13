@@ -1,5 +1,64 @@
 # User questions and answer service
 
+## Introduction
+
+The primary components include users, questions, and answers, and the interactions occur through a RESTful API.
+
+## Workflow Steps
+
+### 1. User Creation
+
+- **Action**: A new user (either male or female) is created by sending a POST request to the `/users/create` API route.
+- **Input**: The request includes a `User Object`, which contains user details such as name and gender.
+- **Process**:
+  - The server validates the input data.
+  - If valid, the user is stored in the NeDB database.
+  - A success message is returned to the client.
+
+### 2. Question Creation
+
+- **Action**: Administrators or authorized users can create new questions by sending a POST request to the `/questions/create` API route.
+- **Input**: The request includes a `Question Object`, containing the text of the question and its gender specification.
+- **Process**:
+  - The server validates the question data.
+  - If valid, the question is saved to the database.
+  - A success message is returned to the client.
+
+### 3. Fetching Questions for Users
+
+- **Action**: When a user logs in or during onboarding, a request is made to retrieve questions tailored to their gender by sending a GET request to `/users/:userId/questions/:n?`.
+- **Input**: The request includes the `userId` as a path parameter and an optional `n` parameter indicating the number of questions to return (defaults to 7).
+- **Process**:
+  - The server retrieves all unanswered questions matching the user's gender from the database.
+  - A random selection of questions is sent back to the client.
+
+### 4. Storing User Answers
+
+- **Action**: When a user answers a question, a POST request is sent to the `/users/store-answer` API route.
+- **Input**: The request contains an `Answer Object`, which includes the `userId` and `questionId`.
+- **Process**:
+  - The server validates the answer data.
+  - The answer is saved to the database under the answers collection, marking the question as answered for the user.
+  - A success message is returned to the client.
+
+### 5. Retrieving User Answers
+
+- **Action**: Users can review their answered questions by sending a GET request to the `/users/answers/:userId` route.
+- **Input**: The request includes the `userId` as a path parameter.
+- **Process**:
+  - The server fetches all questions that the user has answered from the database.
+  - The results are sent back to the client for display.
+
+### 6. Listing All Users and Questions
+
+- **Action**: Administrators or authorized users can retrieve lists of all users and all questions.
+- **Endpoints**:
+  - To fetch all users: GET `/users`
+  - To fetch all questions: GET `/questions`
+- **Process**:
+  - The server retrieves the respective data from the database and returns it in the response.
+
+
 ## 1. Architecture and Layers
 
 This project follows a modular architecture that separates concerns into distinct layers:
