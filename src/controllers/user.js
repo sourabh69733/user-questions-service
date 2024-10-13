@@ -18,28 +18,37 @@ exports.createUser = (req, res) => {
   });
 };
 
-exports.getQuestionsForUser = (req, res) => {
-  const { id } = req.params;
+exports.getAllUsers = (req, res) => {
+  let { limit, random } = req.query;
+  limit = parseInt(limit, 10) || 10; // Default to 0 (no limit)
+  random = random === 'true';
 
-  userDb.findOne({ _id: id }, (err, user) => {
-    if (err) return res.status(500).json({ message: 'Database error' });
-    if (!user) return res.status(404).json({ message: 'User not found' });
+  userDb.find({}, (err, users) => {
+    if (err) {
+      console.error('Error:', err);
+      return res.status(500).json({ message: 'Database error' });
+    }
 
-    const questionType = user.gender === 'female' ? 'daily_women' : 'daily_men';
+    let selectedUsers = users;
+    if (random) {
+      // Shuffle the users array to get a random sample
+      selectedUsers = users.sort(() => 0.5 - Math.random());
+      if (limit > 0) {
+        selectedUsers = selectedUsers.slice(0, limit); // Apply limit after shuffling
+      }
+    } else if (limit > 0) {
+      selectedUsers = users.slice(0, limit); // Limit without random sampling
+    }
 
-    // Fetch unanswered questions for the user
-    questionDb.find({ type: questionType, answeredBy: { $ne: id } }, (err, questions) => {
-      if (err) return res.status(500).json({ message: 'Database error' });
-      res.json(questions);
-    });
+    res.json(selectedUsers);
   });
 };
 
-// Function to fetch n unanswered onboarding questions for male users
-exports.getOnboardingQuestions = (req, res) => {
-  const { userId, n } = req.params;
 
-  if (!n) n = 7;
+exports.getQuestionsForUser = (req, res) => {
+  let { userId } = req.params;
+
+  const n = req.params.n ? parseInt(req.params.n) : 1
 
   userDb.findOne({ _id: userId }, (err, user) => {
     if (err) return res.status(500).json({ message: 'Database error' });
@@ -48,12 +57,19 @@ exports.getOnboardingQuestions = (req, res) => {
     const questionType = user.gender === 'female' ? 'daily_women' : 'daily_men';
 
     // Fetch unanswered questions for the user
-    questionDb.find({ type: questionType, answeredBy: { $ne: userId } })
-              .limit(Number(n))
-              .exec((err, questions) => {
-                if (err) return res.status(500).json({ message: 'Database error' });
-                res.json(questions);
-              });
+    questionDb.find({ 
+      type: questionType, // Include both genders and the user's gender
+      'answeredBy': { $ne: { $elemMatch: { userId: userId } } } // Not answered by the user
+    }, (err, questions) => {
+      if (err) {
+        console.error('Error fetching questions:', err);
+        return res.status(500).json({ message: 'Database error' });
+      }
+  
+      // Randomly sample 7 questions from the results
+      const sampledQuestions = questions.sort(() => 0.5 - Math.random()).slice(0, n);
+      res.json(sampledQuestions);
+    });
   });
 };
 
@@ -84,6 +100,40 @@ exports.storeUserAnswer = (req, res) => {
         
         res.json({ message: 'Answer stored successfully', answer: newAnswer });
       });
+    });
+  });
+};
+
+exports.getAllAnswersByUser = (req, res) => {
+  const userId = req.params.userId;
+
+  // Step 1: Fetch answers for the user
+  answerDb.find({ userId: userId }, (err, answers) => {
+    if (err) {
+      console.error('Error fetching answers:', err);
+      return res.status(500).json({ message: 'Database error' });
+    }
+
+    // Step 2: Extract question IDs from the answers
+    const answeredQuestionIds = answers.map(answer => answer.questionId);
+
+    questionDb.find({ 
+      _id: { $in: answeredQuestionIds } 
+    }, (err, questions) => {
+      if (err) {
+        console.error('Error fetching questions:', err);
+        return res.status(500).json({ message: 'Database error' });
+      }
+
+      const finalResponse = []
+      questions.forEach((question) => {
+        const ans = answers.find((item) => item.questionId == question._id)
+        finalResponse.push({
+          question,
+          answer: ans.answer,
+        })
+      })
+      res.json(finalResponse);
     });
   });
 };
